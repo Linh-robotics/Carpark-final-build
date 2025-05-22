@@ -1,0 +1,113 @@
+import RPi.GPIO as GPIO
+from mfrc522 import SimpleMFRC522
+
+reader = SimpleMFRC522()
+
+while True:
+   text = input('New data:')
+   print("Now place your tag to write")
+   reader.write(text)
+   print("Written")
+   break
+GPIO.cleanup()
+
+#!/usr/bin/env python
+
+import RPi.GPIO as GPIO
+from mfrc522 import SimpleMFRC522
+
+reader = SimpleMFRC522()
+
+try:
+       id, text = reader.read()
+       print(id)
+       print(text)
+finally:
+       GPIO.cleanup()
+
+
+
+
+#pt2
+import ecies
+import sys
+import socket
+import threading
+import binascii
+import RPi.GPIO as GPIO
+from mfrc522 import SimpleMFRC522
+
+reader = SimpleMFRC522()
+# Same as base client.py
+HEADER = 64
+PORT = 50512
+FORMAT = "utf-8"
+DCMSG = "DISCONNECT"
+publicKey = b""
+
+SERVER = "10.76.95.177"
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((SERVER, PORT))
+connected = True
+minReenterTime = 3
+
+# Function for recieving and decoding messages
+def receiveMsgs(client):
+   global connected, publicKey
+   while True:
+       msgLength = client.recv(HEADER).decode(FORMAT)
+       if msgLength != "":
+           msgLength = int(msgLength)
+           msg = client.recv(msgLength).decode(FORMAT)
+          
+           #print(SERVER, msg)
+           if msg == "DISCONNECTED":
+               print(SERVER, msg)
+               connected = False
+               sys.exit("Disconnected from server.")
+           msgArgs = msg.split(":")
+           if msgArgs[0] == "PUBLICKEY":
+               publicKey = binascii.unhexlify(msgArgs[1])
+           else:
+               print(SERVER, msg)
+       else:
+           break
+
+#Function for sending and encoding data
+def send(client, msg):
+   if publicKey == b"":
+       print("[ERROR] Key is empty (Key has not been received).")
+   else:
+       encodedMsg = ecies.encrypt(publicKey, msg.encode("utf-8"))
+       msgLength = f"{len(encodedMsg):<{HEADER}}".encode(FORMAT)
+       client.send(msgLength)
+       client.send(encodedMsg)
+       #send(client, f"TRYCHARGE:{card}:{pin}:{balance}")
+
+receiver = threading.Thread(target=receiveMsgs, args=[client])
+receiver.start()
+
+while True:
+   if not connected:
+       break
+   try:
+       # Get the data you need from user
+       #pin = input('Pin: ')
+       #balance = input('Balance: ')
+       #print("Now place your card to pay")
+
+       # Grab card ID
+       card = reader.read_id()
+
+       # Write pin to card
+       reader.write(pin)
+      
+       # Register with the server
+       send(client, f"REGISTERCARD:{card}:{pin}:{balance}")
+       #time.sleep(1)
+   finally:
+       GPIO.cleanup()
+       id, pin = reader.read()
+       pin = pin.strip()
+exit()

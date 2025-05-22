@@ -1,0 +1,74 @@
+from gpiozero import DistanceSensor
+from gpiozero import Servo # Imports the standard Raspberry Pi GPIO library
+from time import sleep
+
+import time
+
+import pytesseract
+import cv2
+import os, sys, inspect #For dynamic filepaths
+import numpy as np;
+
+ultrasonic = DistanceSensor(echo=17, trigger=24,max_distance=2)
+servo=Servo(18)
+servo.min()
+
+cam = cv2.VideoCapture(0)
+
+def timeToString(specificTime):
+   currentTime = time.localtime(specificTime)
+   return f"{currentTime[2]}/{currentTime[1]}/{currentTime[0]} {currentTime[3]}:{currentTime[4]}:{currentTime[5]}"
+print(time.time())
+print(time.localtime(time.time()))
+mytime = str(timeToString(time.time()))
+print(mytime)
+
+dict_example = {}
+print("original dictionary: ", dict_example)
+
+while True:
+   check, frame = cam.read()
+   img = cv2.resize(frame,(320,240))
+   #img = np.array([[10.5, 50.2, 100.1],[150.8, 200.3, 25.7]], dtype=np.float32)
+   gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+   #normimg = np.zeros(gray_image.shape, dtype=np.float32)
+   #img2 = cv2.normalize(gray_image, 10, 200, cv2.NORM_MINMAX)
+   img3 = cv2.threshold(gray_image,150, 220, cv2.THRESH_BINARY)[1]
+   finalimg = cv2.GaussianBlur(img3, (1, 1), 0)
+   text = pytesseract.image_to_string(finalimg)
+   cv2.imshow("Final", finalimg)
+
+   distance_cm = ultrasonic.distance*100
+   print(ultrasonic.distance * 100)
+   if distance_cm > 10:
+       servo.min()
+       sleep(1)
+       print ("far")
+   if distance_cm < 10 and len(text) >= 6:
+       servo.max()
+       sleep(1)
+       print ("near")
+   else:
+       servo.min()
+
+   dict_example['numberplate'] = text
+   dict_example['time'] = mytime
+
+   if len(text) >=6:
+       if(text in dict_example):
+           timeSpent = time.time() - dict_example[text]
+           print(f"left the carpark {timeSpent} seconds")
+           dict_example.pop(text)
+       else:
+           dict_example[text]=time.time()
+           print(dict_example)
+           print(len(dict_example))
+           time.sleep(1)
+   print(text)
+
+   key = cv2.waitKey(1)
+   if key == 27: # exit on ESC
+       break
+
+cam.release()
+cv2.destroyAllWindows()

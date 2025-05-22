@@ -32,6 +32,7 @@ while True:
    #img = np.array([[10.5, 50.2, 100.1],[150.8, 200.3, 25.7]], dtype=np.float32)
    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
    #normimg = np.zeros(gray_image.shape, dtype=np.float32)
+   #image_to_save = normimg.astype(np.uint8)
    #img2 = cv2.normalize(gray_image, 10, 200, cv2.NORM_MINMAX)
    img3 = cv2.threshold(gray_image,150, 220, cv2.THRESH_BINARY)[1]
    finalimg = cv2.GaussianBlur(img3, (1, 1), 0)
